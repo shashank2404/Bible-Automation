@@ -1,9 +1,12 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const connectDB = require("./configue/db");
+
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const fetch = require("node-fetch");
-
+const User = require("./Database Models/userModels");
 const Verse = require("./Database Models/verseModels");
 
 const app = express();
@@ -17,6 +20,58 @@ app.get("/", (req, res) => {
   res.send("Bible AI Backend Running 🚀");
 });
 
+// ✅ REGISTER
+app.post("/register", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const hashed = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      email,
+      password: hashed
+    });
+
+    res.json({ message: "User created" });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+//login
+app.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(400).json({ error: "User not found" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      return res.status(400).json({ error: "Wrong password" });
+    }
+
+    const token = jwt.sign(
+      { id: user._id },
+      "secretkey",
+      { expiresIn: "1d" }
+    );
+
+    res.json({
+      message: "Login successful",
+      token
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ✅ LIST MODELS (FIXED)
 app.get("/models", async (req, res) => {
@@ -33,8 +88,6 @@ app.get("/models", async (req, res) => {
   }
 });
 
-
-// 🔥 ASK API (FIXED)
 app.get("/ask", async (req, res) => {
   try {
     const { question } = req.query;
@@ -43,73 +96,112 @@ app.get("/ask", async (req, res) => {
       return res.status(400).json({ error: "Question is required" });
     }
 
-    // 🔍 DB search
-    let verses = await Verse.find({
-      $text: { $search: question }
-    }).limit(5);
+    // 🧠 1. Clean + extract keywords
+    const cleanQuery = question
+      .toLowerCase()
+      .replace(/[^\w\s]/gi, "");
 
-    // 👉 fallback if DB empty
+    const keywords = cleanQuery
+      .split(" ")
+      .filter(word => word.length > 3);
+
+    // 🔍 2. TEXT SEARCH
+    let verses = await Verse.find(
+      { $text: { $search: keywords.join(" ") } },
+      { score: { $meta: "textScore" } }
+    )
+      .sort({ score: { $meta: "textScore" } })
+      .limit(5);
+
+    // 🔁 3. FALLBACK → REGEX
     if (verses.length === 0) {
-      const fallback = await fetch("https://bible-api.com/genesis%201:27");
-      const data = await fallback.json();
-      verses = [{ text: data.text }];
+      verses = await Verse.find({
+        text: { $regex: keywords.join("|"), $options: "i" }
+      }).limit(5);
     }
 
-    const context = verses.map(v => v.text).join("\n");
+    // 🌐 4. FINAL FALLBACK → API
+    if (verses.length === 0) {
+      const fallback = await fetch(
+        `https://bible-api.com/${encodeURIComponent(question)}`
+      );
+      const data = await fallback.json();
 
+      verses = [
+        {
+          reference: data.reference || "Unknown",
+          text: data.text || "No verse found"
+        }
+      ];
+    }
+
+    // 🧠 5. CONTEXT RANKING
+    verses = verses.sort((a, b) => b.text.length - a.text.length);
+
+    // 📚 6. CONTEXT BUILD
+    const context = verses
+      .map(v => `${v.reference}: ${v.text}`)
+      .join("\n");
+
+    // 🤖 7. SUPER PROMPT
     const prompt = `
-You are a Bible expert AI.
-Answer ONLY using the Bible context below.
-If answer is not clearly present, say "Not found in Bible context".
+You are a highly intelligent Bible AI Agent.
 
-Context:
+Instructions:
+- Understand the question deeply
+- Answer ONLY using the Bible context
+- Give short and clear answer
+- ALWAYS include verse reference
+- If answer not found, say: "Not found in Bible context"
+
+Bible Context:
 ${context}
 
-Question:
+User Question:
 ${question}
-    `;
 
-    // ✅ CORRECT MODEL
+Final Answer:
+`;
+
+    // 🚀 8. GEMINI CALL
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: prompt }],
-            },
-          ],
+          contents: [{ parts: [{ text: prompt }] }],
         }),
       }
     );
 
     const data = await response.json();
 
-    console.log("Gemini Response:", data);
-
     if (data.error) {
       return res.status(500).json({ error: data.error.message });
     }
 
+    // 🧼 9. CLEAN ANSWER
     const answer =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ||
       "No answer generated";
+
+    // 📊 10. CONFIDENCE
+    const confidence = verses.length > 0 ? "High" : "Low";
 
     res.json({
       question,
       answer,
-      verses,
+      references: verses.map(v => v.reference),
+      confidence
     });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
-
 
 // 🔍 SEARCH
 app.get("/search", async (req, res) => {
