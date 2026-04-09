@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useEffect } from "react";  
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 const style = `
   @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap');
 
@@ -430,178 +431,251 @@ const style = `
     animation: spin 0.7s linear infinite;
     vertical-align: middle; margin-right: 8px;
   }
+    .create-account-btn {
+  margin-top: 12px;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(6px);
+}
+
+.create-account-btn {
+  margin-top: 12px;
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  background: #ffffff;       /* 👈 white background */
+  color: #111;               /* 👈 dark text */
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.3s ease;
+}
+
+/* Hover */
+.create-account-btn:hover {
+  background: #f1f1f1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+/* Active */
+.create-account-btn:active {
+  transform: scale(0.97);
+}
   @keyframes spin { to { transform: rotate(360deg); } }
 `;
-
+const navigate = useNavigate;
 export default function LoginPage() {
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [showPass, setShowPass] = useState(false);
-    const [remember, setRemember] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
-    const [verse, setVerse] = useState(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const [remember, setRemember] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [verse, setVerse] = useState(null);
 
-    useEffect(() => {
-        fetch("http://localhost:3000/random-verse")
-            .then(res => res.json())
-            .then(data => setVerse(data));
-    }, []);
+  useEffect(() => {
+    fetch("http://localhost:3000/random-verse")
+      .then(res => res.json())
+      .then(data => setVerse(data))
+      .catch(err => {
+        console.log(err);
+        setVerse(null); // loading se bahar niklega
+      });
+  }, []);
+  const handleRegister = async () => {
+    try {
+      const res = await fetch("http://localhost:3000/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email, password })
+      });
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError("");
+      const data = await res.json();
+      console.log("REGISTER RESPONSE:", data); // 👈 ye add karo
 
-        if (!email || !password) {
-            setError("Please fill in all fields.");
-            return;
-        }
+      // LoginPage.jsx — after successful login
+      if (data.onboardingComplete) {
+        navigate("/home");        // ← was "/chat"
+      } else {
+        navigate("/onboarding");
+      }
 
-        setLoading(true);
+    } catch (err) {
+      console.log(err);
+      setError("Register failed");
+    }
+  };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
 
-        try {
-            const res = await fetch("http://localhost:3000/login", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ email, password })
-            });
+    if (!email || !password) {
+      setError("Please fill in all fields.");
+      return;
+    }
 
-            const data = await res.json();
+    setLoading(true);
 
-            setLoading(false);
+    try {
+      const res = await fetch("http://localhost:3000/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email, password })
+      });
 
-            if (data.token) {
-                // ✅ SAVE TOKEN
-                localStorage.setItem("token", data.token);
+      const data = await res.json();
 
-                // ✅ REDIRECT
-                window.location.href = "/chat"; // ya "/" (chat page)
+      setLoading(false);
 
-            } else {
-                setError(data.error || "Login failed");
-            }
+      if (data.token) {
+        // ✅ SAVE TOKEN
+        localStorage.setItem("token", data.token);
 
-        } catch (err) {
-            setLoading(false);
-            setError("Server error. Try again.");
-        }
-    };
+        // ✅ REDIRECT
+        window.location.href = "/home"; // ya "/" (chat page)
 
-    return (
-        <>
-            <style>{style}</style>
+      } else {
+        setError(data.error || "Login failed");
+      }
 
-            <div className="scene">
-                <div className="texture" />
-                <div className="light-rays" />
-                <div className="cross">
-                    <div className="cross-v" />
-                    <div className="cross-h" />
-                </div>
-                <div className="corner corner-tl" />
-                <div className="corner corner-tr" />
-                <div className="corner corner-bl" />
-                <div className="corner corner-br" />
+    } catch (err) {
+      setLoading(false);
+      setError("Server error. Try again.");
+    }
+  };
+
+  return (
+    <>
+      <style>{style}</style>
+
+      <div className="scene">
+        <div className="texture" />
+        <div className="light-rays" />
+        <div className="cross">
+          <div className="cross-v" />
+          <div className="cross-h" />
+        </div>
+        <div className="corner corner-tl" />
+        <div className="corner corner-tr" />
+        <div className="corner corner-bl" />
+        <div className="corner corner-br" />
+      </div>
+
+      <div className="card">
+        <div className="ornament">✦ &nbsp; ✦ &nbsp; ✦</div>
+
+        <div className="brand">
+          <h1>BIBLE CHAT</h1>
+          <div className="subtitle">AI Agent &amp; Automation</div>
+        </div>
+
+        <div className="divider">
+          <div className="divider-line" />
+          <div className="divider-diamond" />
+          <div className="divider-line" />
+        </div>
+
+        <div className="verse">
+          {verse ? (
+            <>
+              "{verse.text}"
+              <br />— {verse.reference}
+            </>
+          ) : "Loading..."}
+        </div>
+        <form onSubmit={handleSubmit} noValidate>
+          {error && <div className="error-msg">{error}</div>}
+
+          <div className="field-group">
+            <label className="field-label">Email Address</label>
+            <div className="field-wrap">
+              <span className="field-icon">✉</span>
+              <input
+                className="field-input"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+              />
             </div>
+          </div>
 
-            <div className="card">
-                <div className="ornament">✦ &nbsp; ✦ &nbsp; ✦</div>
-
-                <div className="brand">
-                    <h1>BIBLE CHAT</h1>
-                    <div className="subtitle">AI Agent &amp; Automation</div>
-                </div>
-
-                <div className="divider">
-                    <div className="divider-line" />
-                    <div className="divider-diamond" />
-                    <div className="divider-line" />
-                </div>
-
-                <div className="verse">
-                    {verse ? (
-                        <>
-                            "{verse.text}"
-                            <br />— {verse.reference}
-                        </>
-                    ) : "Loading..."}
-                </div>
-                <form onSubmit={handleSubmit} noValidate>
-                    {error && <div className="error-msg">{error}</div>}
-
-                    <div className="field-group">
-                        <label className="field-label">Email Address</label>
-                        <div className="field-wrap">
-                            <span className="field-icon">✉</span>
-                            <input
-                                className="field-input"
-                                type="email"
-                                placeholder="you@example.com"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                autoComplete="email"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="field-group">
-                        <label className="field-label">Password</label>
-                        <div className="field-wrap">
-                            <span className="field-icon">🔑</span>
-                            <input
-                                className="field-input"
-                                type={showPass ? "text" : "password"}
-                                placeholder="••••••••"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                autoComplete="current-password"
-                                style={{ paddingRight: "42px" }}
-                            />
-                            <button type="button" className="toggle-pass" onClick={() => setShowPass(v => !v)}>
-                                {showPass ? "🙈" : "👁"}
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="row">
-                        <label className="remember">
-                            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-                            <span>Remember me</span>
-                        </label>
-                        <a href="#" className="forgot">Forgot password?</a>
-                    </div>
-
-                    <button className="btn-login" type="submit" disabled={loading}>
-                        {loading && <span className="spinner" />}
-                        {loading ? "Entering…" : "Enter the Word"}
-                    </button>
-                </form>
-
-                <div className="separator">
-                    <div className="sep-line" />
-                    <span className="sep-text">or continue with</span>
-                    <div className="sep-line" />
-                </div>
-
-                <button className="btn-google" type="button">
-                    <svg width="17" height="17" viewBox="0 0 18 18" fill="none">
-                        <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4" />
-                        <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853" />
-                        <path d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z" fill="#FBBC05" />
-                        <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335" />
-                    </svg>
-                    Sign in with Google
-                </button>
-
-                <div className="footer-link">
-                    New to Bible Chat?&nbsp;
-                    <a href="#">Create an account</a>
-                </div>
-
-                <div className="footer-ornament">— ✦ —</div>
+          <div className="field-group">
+            <label className="field-label">Password</label>
+            <div className="field-wrap">
+              <span className="field-icon">🔑</span>
+              <input
+                className="field-input"
+                type={showPass ? "text" : "password"}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                style={{ paddingRight: "42px" }}
+              />
+              <button type="button" className="toggle-pass" onClick={() => setShowPass(v => !v)}>
+                {showPass ? "🙈" : "👁"}
+              </button>
             </div>
-        </>
-    );
+          </div>
+
+          <div className="row">
+            <label className="remember">
+              <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+              <span>Remember me</span>
+            </label>
+            <a href="#" className="forgot">Forgot password?</a>
+          </div>
+
+          <button className="btn-login" type="submit" disabled={loading}>
+            {loading && <span className="spinner" />}
+            {loading ? "Entering…" : "Enter the Word"}
+          </button>
+        </form>
+
+        <div className="separator">
+          <div className="sep-line" />
+          <span className="sep-text">or continue with</span>
+          <div className="sep-line" />
+        </div>
+
+        <button className="btn-google" type="button">
+          <svg width="17" height="17" viewBox="0 0 18 18" fill="none">
+            <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4" />
+            <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853" />
+            <path d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z" fill="#FBBC05" />
+            <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335" />
+          </svg>
+          Sign in with Google
+        </button>
+
+        <button
+          type="button"
+          className="create-account-btn"
+          onClick={() => window.location.href = "/register"}
+        >
+          ✨ Create an Account
+        </button>
+
+        <div className="footer-ornament">— ✦ —</div>
+      </div>
+    </>
+  );
 }
