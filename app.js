@@ -26,6 +26,7 @@ app.use((req, res, next) => {
 
 connectDB();
 app.use("/", onboardingRoutes);
+app.use("/api/bible", require("./Routes/bible"));
 // ─── JWT SECRET ───────────────────────────────────────────────
 const JWT_SECRET = process.env.JWT_SECRET || "secretkey";
 
@@ -33,6 +34,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "secretkey";
 app.get("/", (req, res) => {
   res.send("Bible AI Backend Running 🚀");
 });
+
 
 // ─── REGISTER ─────────────────────────────────────────────────
 app.post("/register", async (req, res) => {
@@ -102,7 +104,7 @@ app.post("/login", async (req, res) => {
   }
 });
 // ─── BIBLE CHAPTER ────────────────────────────────────────────
-app.get("/bible", async (req, res) => {
+app.get("/api/bible/chapter", async (req, res) => {
   try {
     const { book, chapter } = req.query;
 
