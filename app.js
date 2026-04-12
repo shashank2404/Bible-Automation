@@ -9,6 +9,7 @@ const fetch = require("node-fetch");
 const User = require("./Database Models/userModels");
 const Verse = require("./Database Models/verseModels");
 const onboardingRoutes = require("./Routes/onboarding");
+const CalendarRoutes = require("./Routes/Calendarroutes");
 
 const app = express();
 app.use(cors());
@@ -97,10 +98,35 @@ app.post("/login", async (req, res) => {
     const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: "1d" });
 
     res.json({ message: "Login successful", token });
+    
 
   } catch (err) {
     console.error("LOGIN ERROR:", err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+// ─── GET CURRENT USER (JWT PROTECTED) ───────────────────────
+app.get("/api/user", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+
+    if (!token) {
+      return res.status(401).json({ error: "No token provided" });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    const user = await User.findById(decoded.id).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json(user);
+
+  } catch (err) {
+    console.error("USER FETCH ERROR:", err.message);
+    res.status(401).json({ error: "Invalid token" });
   }
 });
 // ─── BIBLE CHAPTER ────────────────────────────────────────────
@@ -130,6 +156,7 @@ app.get("/api/bible/chapter", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+app.use("/api/calendar", CalendarRoutes);
 // ─── RANDOM VERSE ─────────────────────────────────────────────
 app.get("/random-verse", async (req, res) => {
   try {

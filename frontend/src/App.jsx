@@ -5,7 +5,8 @@ import ChatPage from "./pages/chatPage";
 import BibleOnboarding from "./pages/bibleOnboarding";
 import HomePage from "./pages/HomePage";
 import BiblePage from "./pages/biblePage";
-
+import Profile from "./pages/profile";
+import CalendarPage from "./pages/CalendarPage"
 // Auth Guard
 function PrivateRoute({ children }) {
   const token = localStorage.getItem("token");
@@ -17,7 +18,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* Public */}
-        <Route path="/login"    element={<LoginPage />} />
+        <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
 
         {/* Onboarding */}
@@ -43,10 +44,19 @@ function App() {
           path="/bible"
           element={<PrivateRoute><BiblePage /></PrivateRoute>}
         />
-
+           //profile
+        <Route
+          path="/profile"
+          element={<PrivateRoute><Profile /></PrivateRoute>}
+        />
+        //calendar
+        <Route
+          path="/calendar"
+          element={<PrivateRoute><CalendarPage /></PrivateRoute>}
+        />
         {/* Default */}
-        <Route path="/"  element={<Navigate to="/login" replace />} />
-        <Route path="*"  element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   );

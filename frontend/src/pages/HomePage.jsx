@@ -296,7 +296,9 @@ export default function HomePage() {
   const navigate = useNavigate();
   const [progress] = useState(50);
   const [timer, setTimer] = useState(3700 * 15); // seconds for 1:01:40:15
-
+  const [user, setUser] = useState({
+    name: "Shash" // abhi demo, later backend se aayega
+  });
   // countdown timer for deal banner
   useEffect(() => {
     const id = setInterval(() => setTimer(t => Math.max(0, t - 1)), 1000);
@@ -307,12 +309,12 @@ export default function HomePage() {
     const h = Math.floor(s / 3600);
     const m = Math.floor((s % 3600) / 60);
     const sec = s % 60;
-    return `${h}:${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}`;
+    return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
   };
 
   // Get user initial from localStorage or default
   const token = localStorage.getItem("token");
-  const initial = "P"; // parse from token/profile if needed
+  const initial = user.name?.charAt(0).toUpperCase(); // parse from token/profile if needed
 
   return (
     <>
@@ -322,7 +324,9 @@ export default function HomePage() {
         {/* HEADER */}
         <div className="home-header">
           <div className="header-top">
-            <div className="avatar">{initial}</div>
+            <div className="avatar"
+              onClick={()=> navigate("/profile")}
+            >{initial}</div>
             <div className="header-info">
               <div className="header-title">
                 Today's Journey <span className="sparkle">✦</span>
@@ -337,7 +341,9 @@ export default function HomePage() {
               </div>
             </div>
             <div className="header-actions">
-              <div className="btn-calendar">📅</div>
+              <div className="btn-calendar"
+              onClick={()=> navigate("/calendar")}
+              >📅</div>
               <div className="btn-streak">
                 <span className="flame">🔥</span>
                 <span>0</span>

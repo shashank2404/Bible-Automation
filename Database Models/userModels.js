@@ -20,9 +20,19 @@ const noteSchema = new mongoose.Schema({
   verse:       { type: Number, required: true },
   verseText:   { type: String, default: "" },
   noteText:    { type: String, required: true },
-  hlColorId:   { type: String, default: "gold" },   // ← add
-  textStyleId: { type: String, default: "normal" },  // ← add
+  hlColorId:   { type: String, default: "gold" },
+  textStyleId: { type: String, default: "normal" },
   updatedAt:   { type: Date, default: Date.now },
+}, { _id: true });
+
+// ─── NEW: Calendar Entry Schema ───────────────────────────────
+const calendarEntrySchema = new mongoose.Schema({
+  dateKey: { type: String, required: true }, // e.g. "2026-04-12"
+  time:    { type: Number, default: 0 },     // minutes spent
+  verses:  { type: Number, default: 0 },     // verses read
+  acts:    { type: [String], default: [] },  // ["Reading", "Prayer", ...]
+  notes:   { type: String, default: "" },
+  updatedAt: { type: Date, default: Date.now },
 }, { _id: true });
 
 const userSchema = new mongoose.Schema({
@@ -42,6 +52,10 @@ const userSchema = new mongoose.Schema({
   verseBookmarks:   { type: [verseBookmarkSchema],   default: [] },
   chapterBookmarks: { type: [chapterBookmarkSchema], default: [] },
   notes:            { type: [noteSchema],            default: [] },
+
+  // ─── NEW ──────────────────────────────────────────────────
+  calendarEntries: { type: [calendarEntrySchema], default: [] },
+
 }, { timestamps: true });
 
 module.exports = mongoose.model("User", userSchema);
