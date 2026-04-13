@@ -1,199 +1,167 @@
-// src/components/home/VerseCard.jsx
-import { useState, useEffect } from "react";
+import { useState } from "react";       // ← moved to top, was at bottom
+import { useNavigate } from "react-router-dom";
 
 const style = `
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap');
+
   .verse-card {
-    border-radius: 18px;
-    overflow: hidden;
+    background: linear-gradient(135deg, #1A2A3A 0%, #0F1E2E 100%);
+    border-radius: 16px;
+    padding: 20px 18px 16px;
+    border: 1px solid rgba(100,160,220,0.15);
     position: relative;
-    min-height: 220px;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    cursor: pointer;
+    overflow: hidden;
   }
-
-  .verse-card-bg {
+  .verse-card::before {
+    content: '';
     position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      160deg,
-      #1A2A3A 0%,
-      #2A4A5A 40%,
-      #1A3A4A 100%
-    );
-    z-index: 0;
+    top: -40px; right: -40px;
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(100,160,220,0.08) 0%, transparent 70%);
+    pointer-events: none;
   }
-
-  .verse-card-overlay {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      to top,
-      rgba(10,10,8,0.92) 0%,
-      rgba(10,10,8,0.4) 55%,
-      transparent 100%
-    );
-    z-index: 1;
-  }
-
-  .verse-card-top {
-    position: absolute;
-    top: 14px;
-    left: 14px;
-    right: 14px;
+  .vc-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    z-index: 2;
+    margin-bottom: 14px;
   }
-
-  .verse-badge {
+  .vc-label {
     display: flex;
     align-items: center;
     gap: 8px;
-    background: rgba(255,255,255,0.12);
-    backdrop-filter: blur(8px);
-    border-radius: 20px;
-    padding: 6px 12px;
   }
-
-  .check-icon {
-    width: 20px; height: 20px;
+  .vc-check {
+    width: 22px; height: 22px;
     border-radius: 50%;
     background: #E8A838;
     display: flex; align-items: center; justify-content: center;
-    font-size: 11px;
-    color: #fff;
-    flex-shrink: 0;
+    font-size: 11px; color: #fff;
   }
-
-  .verse-badge-text {
+  .vc-title {
     font-family: 'Cinzel', serif;
-    font-size: 11px;
-    font-weight: 700;
+    font-size: 12px; font-weight: 700;
     letter-spacing: 1.5px;
-    color: #fff;
+    color: rgba(200,230,255,0.8);
   }
-
-  .verse-badge-dot { color: rgba(255,255,255,0.5); }
-
-  .verse-done-btn {
+  .vc-time {
+    font-size: 12px;
+    color: rgba(200,230,255,0.4);
+    margin-left: 6px;
+  }
+  .vc-done {
     font-family: 'Cinzel', serif;
-    font-size: 11px;
-    font-weight: 700;
+    font-size: 12px; font-weight: 700;
     letter-spacing: 1.5px;
-    color: #fff;
-    background: none;
-    border: none;
-    cursor: pointer;
+    color: rgba(200,230,255,0.5);
   }
-
-  .verse-card-content {
-    position: relative;
-    z-index: 2;
-    padding: 14px 18px;
-  }
-
-  .verse-ref {
+  .vc-ref {
     font-family: 'Cinzel', serif;
-    font-size: 22px;
-    font-weight: 700;
-    color: #fff;
+    font-size: 22px; font-weight: 700;
+    color: #F5EDD8;
     margin-bottom: 10px;
   }
-
-  .verse-tags {
-    display: flex;
-    gap: 8px;
+  .vc-tags {
+    display: flex; gap: 8px;
     flex-wrap: wrap;
-    margin-bottom: 14px;
+    margin-bottom: 16px;
   }
-
-  .verse-tag {
-    border: 1px solid rgba(255,255,255,0.35);
-    border-radius: 20px;
+  .vc-tag {
+    border: 1px solid rgba(200,230,255,0.2);
+    border-radius: 30px;
     padding: 4px 12px;
-    font-family: 'Cinzel', serif;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 1px;
-    color: rgba(255,255,255,0.85);
-  }
-
-  .verse-actions {
-    display: flex;
-    gap: 10px;
-  }
-
-  .verse-btn {
-    flex: 1;
-    padding: 12px;
-    background: rgba(255,255,255,0.1);
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 12px;
-    color: #fff;
-    font-family: 'Cinzel', serif;
     font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 1px;
+    color: rgba(200,230,255,0.6);
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.5px;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    transition: background 0.2s;
+    transition: all 0.15s;
+    background: transparent;
   }
-
-  .verse-btn:hover { background: rgba(255,255,255,0.18); }
+  .vc-tag:hover, .vc-tag.active {
+    border-color: #E8A838;
+    color: #E8A838;
+    background: rgba(232,168,56,0.07);
+  }
+  .vc-actions {
+    display: flex; gap: 10px;
+  }
+  .vc-btn {
+    flex: 1;
+    padding: 11px 0;
+    border-radius: 10px;
+    font-family: 'Cinzel', serif;
+    font-size: 13px; font-weight: 600;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    transition: all 0.15s;
+    border: none;
+  }
+  .vc-btn-listen {
+    background: rgba(255,255,255,0.07);
+    color: rgba(200,230,255,0.7);
+  }
+  .vc-btn-listen:hover { background: rgba(255,255,255,0.12); }
+  .vc-btn-read {
+    background: linear-gradient(135deg, #E8A838, #B8822A);
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(232,168,56,0.25);
+  }
+  .vc-btn-read:hover {
+    box-shadow: 0 6px 20px rgba(232,168,56,0.4);
+    transform: translateY(-1px);
+  }
 `;
 
-const FALLBACK = { reference: "1 John 4:8", text: "God is love." };
+const TOPICS = [
+  { slug: "heartbreak",  label: "Heart Break" },
+  { slug: "temptation",  label: "Temptation"  },
+  { slug: "brotherhood", label: "Brotherhood" },
+  { slug: "faith",       label: "Faith"       },
+  { slug: "love",        label: "Love"        },
+];
+
+const DAILY_REF = "Ezekiel 9:10";
 
 export default function VerseCard() {
-  const [verse, setVerse] = useState(null);
-  const [done, setDone] = useState(false);
+  const navigate     = useNavigate();
+  const [activeTopic, setActiveTopic] = useState(TOPICS[0].slug);
 
-  useEffect(() => {
-    fetch("http://localhost:3000/random-verse")
-      .then(r => r.json())
-      .then(d => setVerse(d))
-      .catch(() => setVerse(FALLBACK));
-  }, []);
-
-  const ref = verse?.reference || "1 John 4:8";
+  const goRead   = () => navigate(`/verse-reading?topic=${activeTopic}`);
+  const goListen = () => navigate(`/verse-reading?topic=${activeTopic}&mode=listen`);
 
   return (
     <>
       <style>{style}</style>
       <div className="verse-card">
-        <div className="verse-card-bg" />
-        <div className="verse-card-overlay" />
-
-        <div className="verse-card-top">
-          <div className="verse-badge">
-            <div className="check-icon">✓</div>
-            <span className="verse-badge-text">YOUR VERSE</span>
-            <span className="verse-badge-dot">•</span>
-            <span className="verse-badge-text" style={{ fontWeight: 400 }}>1 MIN</span>
+        <div className="vc-top">
+          <div className="vc-label">
+            <div className="vc-check">✓</div>
+            <span className="vc-title">YOUR VERSE</span>
+            <span className="vc-time">· 5 min</span>
           </div>
-          <button className="verse-done-btn" onClick={() => setDone(d => !d)}>
-            {done ? "✓ DONE" : "DONE"}
-          </button>
+          <span className="vc-done">DONE</span>
         </div>
 
-        <div className="verse-card-content">
-          <div className="verse-ref">{ref}</div>
-          <div className="verse-tags">
-            <span className="verse-tag">GOD'S NATURE</span>
-            <span className="verse-tag">LOVE</span>
-            <span className="verse-tag">FAITH</span>
-          </div>
-          <div className="verse-actions">
-            <button className="verse-btn">🎧 Listen</button>
-            <button className="verse-btn">📖 Read</button>
-          </div>
+        <div className="vc-ref">{DAILY_REF}</div>
+
+        <div className="vc-tags">
+          {TOPICS.map(t => (
+            <button
+              key={t.slug}
+              className={`vc-tag ${activeTopic === t.slug ? "active" : ""}`}
+              onClick={() => setActiveTopic(t.slug)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="vc-actions">
+          <button className="vc-btn vc-btn-listen" onClick={goListen}>🎧 Listen</button>
+          <button className="vc-btn vc-btn-read"   onClick={goRead}>📖 Read</button>
         </div>
       </div>
     </>

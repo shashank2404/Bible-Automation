@@ -41,14 +41,7 @@ const styles = {
     padding: "0 8px",
     lineHeight: 1,
   },
-  settings: {
-    background: "none",
-    border: "none",
-    fontSize: "18px",
-    color: "#8a6d3b",
-    cursor: "pointer",
-    padding: "0 8px",
-  },
+
 };
 
 export default TopNav;

@@ -7,6 +7,7 @@ import HomePage from "./pages/HomePage";
 import BiblePage from "./pages/biblePage";
 import Profile from "./pages/profile";
 import CalendarPage from "./pages/CalendarPage"
+import VersePage from "./pages/versePage";
 // Auth Guard
 function PrivateRoute({ children }) {
   const token = localStorage.getItem("token");
@@ -53,6 +54,10 @@ function App() {
         <Route
           path="/calendar"
           element={<PrivateRoute><CalendarPage /></PrivateRoute>}
+        />
+         <Route
+          path="/verse-reading"
+          element={<PrivateRoute><VersePage /></PrivateRoute>}
         />
         {/* Default */}
         <Route path="/" element={<Navigate to="/login" replace />} />
