@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const API_BASE = "http://localhost:3000"; // your existing server port
+const API_BASE = import.meta.env.VITE_API_URL; // your existing server port
 
 // Get JWT token from localStorage (set during login)
 function getToken() { 

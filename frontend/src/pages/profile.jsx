@@ -64,7 +64,7 @@ const Profile = () => {
       return;
     }
 
-    fetch("http://localhost:3000/api/user", {
+    fetch(`${import.meta.env.VITE_API_URL}/api/user`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => {

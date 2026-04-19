@@ -486,7 +486,7 @@ export default function LoginPage() {
   const [verse, setVerse] = useState(null);
 
   useEffect(() => {
-    fetch("http://localhost:3000/random-verse")
+    fetch(`${import.meta.env.VITE_API_URL}/random-verse`)
       .then(res => res.json())
       .then(data => setVerse(data))
       .catch(err => {
@@ -496,7 +496,7 @@ export default function LoginPage() {
   }, []);
   const handleRegister = async () => {
     try {
-      const res = await fetch("http://localhost:3000/register", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -531,7 +531,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:3000/login", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
