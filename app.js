@@ -35,7 +35,9 @@ const JWT_SECRET = process.env.JWT_SECRET || "secretkey";
 app.get("/", (req, res) => {
   res.send("Bible AI Backend Running 🚀");
 });
+app.use("/api", require("./Routes/gemini"));
 
+app.use("/api/progress", require("./Routes/progress"));
 
 // ─── REGISTER ─────────────────────────────────────────────────
 app.post("/register", async (req, res) => {
