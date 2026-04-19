@@ -6,13 +6,12 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      "/api": "http://localhost:3000",
-      "/ask": "http://localhost:3000",
-      "/random-verse": "http://localhost:3000",
-      "/search": "http://localhost:3000",
-      "/verse": "http://localhost:3000",
+      "/api": "https://bible-automation-1.onrender.com",
+      "/ask": "https://bible-automation-1.onrender.com",
+      "/random-verse": "https://bible-automation-1.onrender.com",
+      "/search": "https://bible-automation-1.onrender.com",
+      "/verse": "https://bible-automation-1.onrender.com",
     },
   },
-  // ✅ This is the correct Vite way to handle SPA routing on reload
   appType: "spa",
 });
