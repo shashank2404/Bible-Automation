@@ -1,16 +1,29 @@
 // src/pages/HomePage.jsx
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import VerseCard from "../components/home/VerseCard";
 import BottomNav from "../components/home/BottomNav";
 
 // ─── OFFER CONFIG ─────────────────────────────────────────────────────────────
+// FIX 1: Compute expiresAt as a static timestamp (ms), not a Date object built
+//         at module-evaluation time. Using Date.now() here is fine because the
+//         *offset* is what matters; we just need a stable ms value.
+const OFFER_DURATION_MS = 15 * 3600 * 1000 + 23 * 60 * 1000 + 29 * 1000;
+
+const getOfferExpiry = (id) => {
+  const key = `offer_expiry_${id}`;
+  const stored = localStorage.getItem(key);
+  if (stored) return Number(stored);
+  const expiry = Date.now() + OFFER_DURATION_MS;
+  localStorage.setItem(key, String(expiry));
+  return expiry;
+};
+
 const OFFERS = [
   {
     id: "offer_apr_2026",
     label: "Exclusive Deal",
     icon: "🏷️",
-    expiresAt: new Date(Date.now() + 15 * 3600 * 1000 + 23 * 60 * 1000 + 29 * 1000),
   },
 ];
 
@@ -197,6 +210,16 @@ export default function HomePage() {
   const [streak,          setStreak]          = useState(() => getStore("streak", 0));
   const [toast,           setToast]           = useState(null);
 
+  // FIX 4: Use a ref to track the active toast timer so we can clear it before
+  //         setting a new one, preventing race conditions when events fire quickly.
+  const toastTimerRef = useRef(null);
+
+  const showToast = useCallback((msg) => {
+    clearTimeout(toastTimerRef.current);
+    setToast(msg);
+    toastTimerRef.current = setTimeout(() => setToast(null), 2700);
+  }, []);
+
   // ── 1. Load user profile ───────────────────────────────────────────────────
   useEffect(() => {
     const stored = getStore("userProfile", null);
@@ -220,50 +243,41 @@ export default function HomePage() {
 
   // ── 3. Event listeners — verseRead event, visibilitychange, focus ─────────
   useEffect(() => {
-    // Called when VersePage fires "verseRead" custom event
     const onVerseRead = (e) => {
-      // Immediately update from localStorage (written by VersePage already)
       syncFromStorage();
 
-      const count  = e.detail?.count  ?? getStore(`verses_${todayKey()}`, 0);
-      const streak = e.detail?.streak ?? getStore("streak", 0);
+      const count        = e.detail?.count  ?? getStore(`verses_${todayKey()}`, 0);
+      const latestStreak = e.detail?.streak ?? getStore("streak", 0);
 
-      // Override streak with authoritative server value from event
-      setStreak(streak);
+      setStreak(latestStreak);
 
       if (count === VERSES_REQUIRED) {
-        setToast(`🔥 ${streak}-day streak! Well done!`);
-        setTimeout(() => setToast(null), 2700);
+        showToast(`🔥 ${latestStreak}-day streak! Well done!`);
       } else if (count < VERSES_REQUIRED) {
-        setToast(`📖 ${count}/${VERSES_REQUIRED} verses — keep going!`);
-        setTimeout(() => setToast(null), 2700);
+        showToast(`📖 ${count}/${VERSES_REQUIRED} verses — keep going!`);
       }
     };
 
     // ── 4. visibilitychange — re-fetch DB when user comes back ────────────
     const onVisible = async () => {
       if (document.visibilityState !== "visible") return;
-
-      // Instant local update first so UI isn't stale
       syncFromStorage();
-
-      // Then get authoritative values from DB
       const data = await fetchProgressFromDB();
       applyDBData(data, { setVersesReadToday, setStreak, setReadDays });
     };
 
     const onFocus = () => syncFromStorage();
 
-    window.addEventListener("verseRead",        onVerseRead);
+    window.addEventListener("verseRead",          onVerseRead);
     document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus",            onFocus);
+    window.addEventListener("focus",              onFocus);
 
     return () => {
-      window.removeEventListener("verseRead",        onVerseRead);
+      window.removeEventListener("verseRead",          onVerseRead);
       document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus",            onFocus);
+      window.removeEventListener("focus",              onFocus);
     };
-  }, [syncFromStorage]);
+  }, [syncFromStorage, showToast]);
 
   // ── Derived values ─────────────────────────────────────────────────────────
   const progress = Math.min(100, Math.round((versesReadToday / VERSES_REQUIRED) * 100));
@@ -272,13 +286,25 @@ export default function HomePage() {
   const initial  = user.name?.charAt(0).toUpperCase() || "?";
 
   // ── Active offer + countdown ───────────────────────────────────────────────
-  const activeOffer = OFFERS.find(o => new Date(o.expiresAt) > new Date()) || null;
-  const [offerSecsLeft, setOfferSecsLeft] = useState(() =>
-    activeOffer ? Math.max(0, Math.floor((new Date(activeOffer.expiresAt) - Date.now()) / 1000)) : 0
-  );
+  // FIX 1 + 2: Resolve the expiry timestamp lazily (stored in localStorage so it
+  //            survives reloads) instead of computing it once at module load time.
+  const activeOffer = OFFERS.find(o => {
+    const expiry = getOfferExpiry(o.id);
+    return expiry > Date.now();
+  }) || null;
+
+  const [offerSecsLeft, setOfferSecsLeft] = useState(() => {
+    if (!activeOffer) return 0;
+    const expiry = getOfferExpiry(activeOffer.id);
+    return Math.max(0, Math.floor((expiry - Date.now()) / 1000));
+  });
+
   useEffect(() => {
     if (!activeOffer) return;
-    const id = setInterval(() => setOfferSecsLeft(s => Math.max(0, s - 1)), 1000);
+    const id = setInterval(() => {
+      const expiry = getOfferExpiry(activeOffer.id);
+      setOfferSecsLeft(Math.max(0, Math.floor((expiry - Date.now()) / 1000)));
+    }, 1000);
     return () => clearInterval(id);
   }, [activeOffer]);
 

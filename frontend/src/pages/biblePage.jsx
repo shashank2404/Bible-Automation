@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";  // ← useEffect added
+import { useState, useRef, useEffect, useCallback } from "react";
 import NotepadModal from "./Notepad";
 
 const BIBLE_BOOKS = {
@@ -301,6 +301,8 @@ function ShareSheet({ isOpen, onClose, verseRef, verseText, accent }) {
 }
 
 // ── Context Menu ─────────────────────────────────────────
+// FIX 3: ContextMenu now receives viewport-relative coordinates (clientX/clientY)
+//         directly and uses position:fixed properly — no offset adjustment needed.
 function ContextMenu({ visible, x, y, verseNum, verseRef, theme, onAction, onClose }) {
   if (!visible) return null;
   const items = [
@@ -321,6 +323,13 @@ function ContextMenu({ visible, x, y, verseNum, verseRef, theme, onAction, onClo
     chapterbk: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>,
     audio:     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg>,
   };
+
+  // Clamp menu so it never overflows the right or bottom of the viewport
+  const menuWidth  = 210;
+  const menuHeight = 320; // approximate
+  const clampedX   = Math.min(x, window.innerWidth  - menuWidth  - 8);
+  const clampedY   = Math.min(y, window.innerHeight - menuHeight - 8);
+
   return (
     <>
       <style>{`
@@ -334,8 +343,9 @@ function ContextMenu({ visible, x, y, verseNum, verseRef, theme, onAction, onClo
         .ctx-lbl{font-family:'Lato',sans-serif;font-size:13px;color:#f0ead6;}
         .ctx-sub{font-size:10px;color:rgba(240,234,214,0.35);margin-top:1px;}
       `}</style>
-      <div className="ctx-wrap" style={{ top: y, left: x }}>
-        <div className="ctx-ref">{verseRef}</div>
+      <div className="ctx-wrap" style={{ top: clampedY, left: clampedX }}>
+        {/* FIX 4: Guard against null verseRef — only render when verseRef is valid */}
+        {verseRef && <div className="ctx-ref">{verseRef}</div>}
         {items.map(it => (
           <button key={it.id} className="ctx-row" onClick={() => onAction(it.id)}>
             <div className="ctx-ic" style={{ background: it.bg, color: it.iconColor }}>{ICONS[it.id]}</div>
@@ -394,16 +404,20 @@ export default function BiblePage() {
   // Context menu
   const [ctx, setCtx] = useState({ visible: false, x: 0, y: 0, verseNum: null, verseText: "" });
 
-  // Modals — now includes book/chapter/verse for NotepadModal
+  // Modals
   const [shareOpen, setShareOpen] = useState(false);
   const [noteOpen, setNoteOpen]   = useState(false);
   const [noteVerse, setNoteVerse] = useState({
-    ref: "", text: "", book: "", chapter: null, verse: null  // ← added book/chapter/verse
+    ref: "", text: "", book: "", chapter: null, verse: null
   });
 
   const [toastMsg, setToastMsg] = useState("");
   const toastTimer = useRef(null);
   const contentRef = useRef(null);
+
+  // FIX 1: Store per-verse tap timestamps in a ref (keyed by verse number) so
+  //         they persist across re-renders without causing extra renders themselves.
+  const lastTapRef = useRef({});
 
   // ── Load bookmarks on mount ──────────────────────────────
   useEffect(() => {
@@ -418,25 +432,27 @@ export default function BiblePage() {
     }).catch(() => {});
   }, []);
 
-  const toast = (msg) => {
+  const toast = useCallback((msg) => {
     setToastMsg(msg);
     clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToastMsg(""), 2200);
-  };
+  }, []);
 
-const fetchChapter = async (book, chapter) => {
-  setLoading(true); setError(null); setVerses([]);
-  try {
-    // OLD: fetch(`/bible?book=...`)
-    const res = await fetch(`/api/bible/chapter?book=${encodeURIComponent(book)}&chapter=${chapter}`);
-    if (!res.ok) throw new Error("Failed to load chapter");
-    setVerses(await res.json());
-  } catch (err) {
-    setError(err.message);
-  } finally {
-    setLoading(false);
-  }
-};
+  // FIX 2: Use apiFetch (with auth headers) instead of a raw fetch so chapter
+  //         requests include the Authorization header consistently.
+  const fetchChapter = useCallback(async (book, chapter) => {
+    setLoading(true); setError(null); setVerses([]);
+    try {
+      const data = await apiFetch(`/chapter?book=${encodeURIComponent(book)}&chapter=${chapter}`);
+      // apiFetch throws if the response isn't ok (network error); handle API-level errors:
+      if (data?.error) throw new Error(data.error);
+      setVerses(data);
+    } catch (err) {
+      setError(err.message || "Failed to load chapter");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const openBook = (book) => {
     setSelectedBook(book);
@@ -457,14 +473,16 @@ const fetchChapter = async (book, chapter) => {
     setCtx(c => ({ ...c, visible: false }));
   };
 
-  const verseRef = (v) => `${selectedBook?.name} ${selectedChapter}:${v}`;
+  const verseRef = (v) => {
+    // FIX 4: Guard against null/undefined verse number to prevent "undefined null:null"
+    if (!selectedBook || v == null) return "";
+    return `${selectedBook.name} ${selectedChapter}:${v}`;
+  };
 
+  // FIX 3: Use raw clientX/clientY (viewport-relative) for position:fixed menus.
   const openCtx = (e, verseNum, verseText) => {
     e.preventDefault();
-    const rect = contentRef.current?.getBoundingClientRect() || { left: 0, top: 0 };
-    const x = Math.min(e.clientX - rect.left, (contentRef.current?.offsetWidth || 320) - 210);
-    const y = e.clientY - rect.top + 6;
-    setCtx({ visible: true, x, y, verseNum, verseText });
+    setCtx({ visible: true, x: e.clientX, y: e.clientY + 6, verseNum, verseText });
   };
 
   const handleCtxAction = async (action) => {
@@ -472,7 +490,6 @@ const fetchChapter = async (book, chapter) => {
     const vText = ctx.verseText;
     const ref   = verseRef(vNum);
 
-    // Close context menu first
     setCtx(c => ({ ...c, visible: false }));
 
     if (action === "share") {
@@ -481,7 +498,6 @@ const fetchChapter = async (book, chapter) => {
     }
 
     else if (action === "notes") {
-      // ← Store book/chapter/verse so NotepadModal can save to DB correctly
       setNoteVerse({ ref, text: vText, book: selectedBook.name, chapter: selectedChapter, verse: vNum });
       setNoteOpen(true);
     }
@@ -748,7 +764,7 @@ const fetchChapter = async (book, chapter) => {
                   <button key={ch} className="chapter-btn" onClick={() => openChapter(ch)} style={{
                     padding: "13px 8px", borderRadius: 10, cursor: "pointer",
                     background: chapterBookmarks.has(`${selectedBook.name} ${ch}`)
-                      ? `${theme.accent}22`   // ← highlighted if bookmarked
+                      ? `${theme.accent}22`
                       : "rgba(255,255,255,0.04)",
                     border: `1px solid ${chapterBookmarks.has(`${selectedBook.name} ${ch}`) ? theme.accent + "66" : theme.accent + "22"}`,
                     color: "#f0ead6", fontSize: 15, fontFamily: "'Cinzel',serif",
@@ -786,23 +802,25 @@ const fetchChapter = async (book, chapter) => {
               )}
 
               {!loading && !error && verses.map((v, idx) => {
-                let lastTap = 0;
                 const isBookmarked = verseBookmarks.has(`${selectedBook.name} ${selectedChapter}:${v.verse}`);
                 return (
                   <div key={v.verse}
                     className={`verse-row${highlightedVerses.has(v.verse) ? " hl" : ""}`}
                     onDoubleClick={e => openCtx(e, v.verse, v.text)}
+                    // FIX 1: Read and write lastTap from the stable ref, keyed by verse
+                    //         number, so the timestamp persists across re-renders.
                     onClick={e => {
                       const now = Date.now();
-                      if (now - lastTap < 350) openCtx(e, v.verse, v.text);
-                      lastTap = now;
+                      if (now - (lastTapRef.current[v.verse] || 0) < 350) {
+                        openCtx(e, v.verse, v.text);
+                      }
+                      lastTapRef.current[v.verse] = now;
                     }}
                     style={{
                       "--accent": theme.accent,
                       display: "flex", gap: 14,
                       padding: "10px 14px",
                       borderRadius: 8, cursor: "pointer", marginBottom: 1,
-                      // ← Show a subtle gold left border if this verse is bookmarked
                       borderLeft: isBookmarked ? `3px solid ${theme.accent}` : "3px solid transparent",
                       animation: `slideIn 0.2s ease ${Math.min(idx, 20) * 0.015}s both`,
                     }}>
@@ -842,9 +860,9 @@ const fetchChapter = async (book, chapter) => {
         onClose={() => setNoteOpen(false)}
         verseRef={noteVerse.ref}
         verseText={noteVerse.text}
-        book={noteVerse.book}          
-        chapter={noteVerse.chapter}    
-        verse={noteVerse.verse}        
+        book={noteVerse.book}
+        chapter={noteVerse.chapter}
+        verse={noteVerse.verse}
       />
       <Toast msg={toastMsg} />
     </>

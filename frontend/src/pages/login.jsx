@@ -581,8 +581,8 @@ export default function LoginPage() {
         <div className="ornament">✦ &nbsp; ✦ &nbsp; ✦</div>
 
         <div className="brand">
-          <h1>BIBLE CHAT</h1>
-          <div className="subtitle">AI Agent &amp; Automation</div>
+          <h1>BIBLE GLORY</h1>
+          <div className="subtitle">Holy Bible Study &amp; Bible Chat</div>
         </div>
 
         <div className="divider">
