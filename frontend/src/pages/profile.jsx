@@ -3,8 +3,9 @@ import TopNav from "../components/Profile/TopNav";
 import BottomNav from "../components/Profile/bottomNav";
 import ProfileCard from "../components/Profile/ProfileCard";
 import StatsCard from "../components/Profile/StatsCard";
-import SubscriptionPlans from "../components/Profile/SubscriptionPlans";
+import SubscriptionPlans from "../components/Profile/Subscriptionplans";
 import { useNavigate } from "react-router-dom";
+
 
 const COMMUNITIES = [
   { id: 1, name: "Daily Devotionals", members: "12.4k", icon: "📖", joined: true },
