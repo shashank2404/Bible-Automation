@@ -7,7 +7,7 @@ import HomePage from "./pages/HomePage";
 import BiblePage from "./pages/biblePage";
 import Profile from "./pages/profile";
 import CalendarPage from "./pages/CalendarPage"
-import VersePage from "./pages/versePage";
+import VersePage from "./pages/VersePage";
 // Auth Guard
 function PrivateRoute({ children }) {
   const token = localStorage.getItem("token");
